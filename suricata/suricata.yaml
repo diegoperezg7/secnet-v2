@@ -1,0 +1,69 @@
+%YAML 1.1
+---
+# Basic Suricata configuration for the MVP
+
+vars:
+  # Define the network addresses that are considered "home"
+  address-groups:
+    HOME_NET: "!192.168.0.0/16, !10.0.0.0/8, !172.16.0.0/12"
+    EXTERNAL_NET: "!$HOME_NET"
+
+  # Define the server ports
+  port-groups:
+    HTTP_PORTS: "80"
+    HTTPS_PORTS: "443"
+    SSH_PORTS: "22"
+    DNS_PORTS: "53"
+
+# Configure outputs
+outputs:
+  # EVE JSON output
+  - eve-log:
+      enabled: yes
+      filetype: regular
+      filename: eve.json
+      types:
+        - alert
+        - dns
+        - tls
+        - ssh
+
+# Configure detection engine
+detect-engine:
+  - profile: medium
+  - custom-values:
+      toclient-src-groups: 2
+      toclient-dst-groups: 2
+      toclient-sp-groups: 2
+      toclient-dp-groups: 3
+      toserver-src-groups: 2
+      toserver-dst-groups: 4
+      toserver-sp-groups: 2
+      toserver-dp-groups: 25
+  - sgh-mpm-context: auto
+  - inspection-recursion-limit: 3000
+
+# Configure rules
+default-rule-path: /etc/suricata/rules
+rule-files:
+  - local.rules
+
+# Configure logging
+logging:
+  default-log-level: info
+  outputs:
+    - console:
+        enabled: yes
+    - file:
+        enabled: yes
+        filename: suricata.log
+
+# Configure af-packet for packet capture
+af-packet:
+  - interface: eth0  # Cambia a la interfaz que uses si es necesario
+    threads: 4
+    ring-buffer-size: 256m
+    # Si no usas una interfaz específica, usa 'default'
+    # interface: default
+
+  - suppress-filename: suppress-http.rules

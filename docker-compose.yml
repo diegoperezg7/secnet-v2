@@ -1,0 +1,47 @@
+services:
+  suricata:
+    build: ./suricata
+    container_name: suricata
+    networks:
+      - incident-network
+    volumes:
+      - ./suricata/rules:/etc/suricata/rules
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml
+      - ./logs:/var/log/suricata
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+  python-responder:
+    build: ./python-responder
+    container_name: python-responder
+    networks:
+      - incident-network
+    volumes:
+      - ./logs:/var/log/suricata:ro
+      - ./database:/app/database
+    depends_on:
+      - suricata
+    restart: unless-stopped
+    command: ["python", "responder.py"]
+
+  web-interface:
+    build: ./web-interface
+    container_name: web-interface
+    networks:
+      - incident-network
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web-interface:/var/www/html
+      - ./database:/var/www/html/database
+      - ./logs:/var/www/html/logs:ro
+    depends_on:
+      - suricata
+      - python-responder
+    restart: unless-stopped
+
+networks:
+  incident-network:
+    driver: bridge

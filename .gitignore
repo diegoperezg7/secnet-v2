@@ -1,0 +1,67 @@
+# Archivos de base de datos
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+/var/log/
+
+# Archivos de configuración local
+.env
+config.local.php
+*.local.*
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de IDE/editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Archivos de dependencias
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Archivos de compilación
+*.o
+*.so
+*.dll
+*.dylib
+
+# Archivos temporales
+*.tmp
+*.temp
+*.bak
+
+# Archivos de certificados y claves
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
+
+# Archivos de backup
+*.backup
+*.old
+*_old
+
+# Archivos de caché
+.cache/
+.temp/
+tmp/
+
+# Archivos de configuración específicos del entorno
+.env.*
+!.env.example

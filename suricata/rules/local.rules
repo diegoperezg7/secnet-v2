@@ -1,0 +1,86 @@
+# Local rules for Suricata
+# These are custom rules for the MVP
+
+# Regla específica para eth0
+alert (msg:"[SECNET] Tráfico detectado en eth0"; interface:eth0; sid:1000000; rev:1;)
+
+# SSH brute force detection - Severidad 3 (Alta)
+alert tcp any any -> $HOME_NET 22 (msg:"ET POLICY SSH Brute Force Attempt"; flow:to_server; threshold: type threshold, track by_src, count 5, seconds 60; classtype:attempted-admin; sid:1000001; rev:1; priority:1;)
+
+# Nmap scan detection - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET any (msg:"ET SCAN Nmap SYN Scan Detected"; flags:S; flow:to_server,established; threshold:type threshold, track by_src, count 10, seconds 30; sid:1000010; rev:1; priority:2;)
+alert tcp any any -> $HOME_NET any (msg:"ET SCAN Nmap TCP Connect Scan Detected"; flags:SF; flow:to_server,established; threshold:type threshold, track by_src, count 10, seconds 30; sid:1000011; rev:1; priority:2;)
+alert tcp any any -> $HOME_NET any (msg:"ET SCAN Nmap FIN Scan Detected"; flags:F; flow:to_server,established; threshold:type threshold, track by_src, count 10, seconds 30; sid:1000012; rev:1; priority:2;)
+
+# Malware C2 and DNS tunneling - Severidad 3 (Alta)
+alert dns $HOME_NET any -> any any (msg:"ET MALWARE DNS Tunneling Attempt"; dns.query; content:"|00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00|"; depth:16; classtype:trojan-activity; sid:1000013; rev:1; priority:1;)
+alert dns $HOME_NET any -> any any (msg:"ET MALWARE High DNS Query Volume"; dns.query; threshold:type threshold, track by_src, count 50, seconds 60; classtype:trojan-activity; sid:1000014; rev:1; priority:1;)
+
+# Web application attacks
+# alert http any any -> $HOME_NET any (msg:"ET WEB_SERVER PHP Remote File Inclusion Attempt"; flow:to_server,established; http.uri; content:".php?"; nocase; content:"=http"; nocase; classtype:web-application-attack; sid:1000003; rev:1;)
+# alert http any any -> $HOME_NET any (msg:"ET WEB_SERVER SQL Injection Attempt"; flow:to_server,established; http.uri; content:"'"; pcre:"/(\%27)|(\')|(\-\-)|(%23)|(#)/i"; classtype:web-application-attack; sid:1000004; rev:1;)
+
+# File uploads and downloads
+# alert http any any -> $HOME_NET any (msg:"ET MALWARE Suspicious EXE Download"; flow:to_server,established; http.uri; content:".exe"; nocase; classtype:trojan-activity; sid:1000005; rev:1;)
+# alert http any any -> $HOME_NET any (msg:"ET FILE_UPLOAD Suspicious ZIP Download"; flow:to_server,established; http.uri; content:".zip"; nocase; classtype:trojan-activity; sid:1000015; rev:1;)
+# alert http any any -> $HOME_NET any (msg:"ET FILE_UPLOAD Suspicious RAR Download"; flow:to_server,established; http.uri; content:".rar"; nocase; classtype:trojan-activity; sid:1000016; rev:1;)
+
+# Basic rules for testing - Severidad 1 (Baja)
+alert icmp any any -> $HOME_NET any (msg:"ICMP Ping"; sid:1000006; rev:1; priority:3;)
+
+# Potential port scan detection - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET any (msg:"Potential Port Scan"; flags:S; threshold:type threshold, track by_src, count 5, seconds 60; sid:1000009; rev:1; priority:2;)
+
+# RDP brute force detection - Severidad 3 (Alta)
+alert tcp any any -> $HOME_NET 3389 (msg:"ET POLICY RDP Brute Force Attempt"; flow:to_server; threshold: type threshold, track by_src, count 5, seconds 60; classtype:attempted-admin; sid:1000022; rev:1; priority:1;)
+
+# SMB/CIFS attacks - Severidad 3 (Alta)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB/CIFS Brute Force Attempt"; flow:to_server; threshold: type threshold, track by_src, count 5, seconds 60; classtype:attempted-admin; sid:1000023; rev:1; priority:1;)
+
+# DNS amplification attack detection - Severidad 3 (Alta)
+alert udp any any -> $HOME_NET 53 (msg:"ET DNS DNS Amplification Attack"; threshold:type threshold, track by_src, count 500, seconds 60; classtype:attempted-dos; sid:1000024; rev:1; priority:1;)
+
+# SSL/TLS attacks - Severidad 2 (Media)
+alert tls any any -> $HOME_NET any (msg:"ET TLS SSL/TLS Version Downgrade Attempt"; tls.version:0x0300; classtype:attempted-admin; sid:1000025; rev:1; priority:2;)
+alert tls any any -> $HOME_NET any (msg:"ET TLS SSL/TLS Cipher Suite Downgrade Attempt"; tls.cipher_suite:0x0000; classtype:attempted-admin; sid:1000026; rev:1; priority:2;)
+
+# SMB/CIFS specific attacks - Severidad 3 (Alta)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB/CIFS Directory Traversal Attempt"; flow:to_server,established; content:"..\"; nocase; classtype:attempted-admin; sid:1000027; rev:1; priority:1;)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB/CIFS Buffer Overflow Attempt"; flow:to_server,established; content:"%u"; nocase; classtype:attempted-admin; sid:1000028; rev:1; priority:1;)
+
+# Web application attacks adicionales
+# alert http any any -> $HOME_NET any (msg:"ET WEB_SERVER Directory Traversal Attempt"; flow:to_server,established; http.uri; content:"../"; nocase; classtype:web-application-attack; sid:1000029; rev:1;)
+# alert http any any -> $HOME_NET any (msg:"ET WEB_SERVER XSS Attempt"; flow:to_server,established; http.uri; content:"<script"; nocase; classtype:web-application-attack; sid:1000030; rev:1;)
+# alert http any any -> $HOME_NET any (msg:"ET WEB_SERVER Command Injection Attempt"; flow:to_server,established; http.uri; content:"|26 26 26 26|"; classtype:web-application-attack; sid:1000031; rev:1;)
+
+# SSH attacks adicionales - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 22 (msg:"ET SSH SSH Protocol Version Mismatch"; flow:to_server,established; content:"SSH-2.0-"; nocase; classtype:attempted-admin; sid:1000032; rev:1; priority:2;)
+alert tcp any any -> $HOME_NET 22 (msg:"ET SSH SSH Version Scan"; flow:to_server,established; content:"SSH-"; nocase; classtype:attempted-admin; sid:1000033; rev:1; priority:2;)
+
+# FTP attacks - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 21 (msg:"ET FTP FTP Brute Force Attempt"; flow:to_server,established; content:"USER"; nocase; threshold:type threshold, track by_src, count 5, seconds 60; classtype:attempted-admin; sid:1000034; rev:1; priority:2;)
+alert tcp any any -> $HOME_NET 21 (msg:"ET FTP FTP Directory Traversal Attempt"; flow:to_server,established; content:"..\"; nocase; classtype:attempted-admin; sid:1000035; rev:1; priority:2;)
+
+# SMB Proxy Detection - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Proxy Detection"; flow:to_server,established; content:"PROXY"; nocase; classtype:attempted-admin; sid:1000036; rev:1; priority:2;)
+
+# Windows Update Exploits
+# alert http any any -> $HOME_NET any (msg:"ET WINDOWS Windows Update Exploit Attempt"; flow:to_server,established; http.uri; content:"/WindowsUpdate"; nocase; classtype:attempted-admin; sid:1000037; rev:1;)
+
+# SMB Enumeration - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Enumeration Attempt"; flow:to_server,established; content:"\x00\x00\x00\x00"; depth:4; classtype:attempted-admin; sid:1000038; rev:1; priority:2;)
+
+# SMB Null Session - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Null Session Attempt"; flow:to_server,established; content:"\x00\x00\x00\x00"; depth:4; offset:4; classtype:attempted-admin; sid:1000039; rev:1; priority:2;)
+
+# SMB Share Access - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Share Access Attempt"; flow:to_server,established; content:"\\"; nocase; classtype:attempted-admin; sid:1000040; rev:1; priority:2;)
+
+# SMB File Access - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB File Access Attempt"; flow:to_server,established; content:"\x00\x00\x00\x00"; depth:4; offset:8; classtype:attempted-admin; sid:1000041; rev:1; priority:2;)
+
+# SMB Directory Listing - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Directory Listing Attempt"; flow:to_server,established; content:"\x00\x00\x00\x00"; depth:4; offset:12; classtype:attempted-admin; sid:1000042; rev:1; priority:2;)
+
+# Posible escaneo SYN - Severidad 2 (Media)
+alert tcp any any -> $HOME_NET any (msg:"[SECNET] Posible escaneo SYN"; flags:S; threshold: type both, track by_src, count 10, seconds 10; sid:1001001; rev:1; priority:2;)
