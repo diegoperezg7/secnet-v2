@@ -1,23 +1,57 @@
-# 1) Regla “catch-all” para cualquier tráfico IP hacia 192.168.56.4
-alert ip any any -> $HOME_NET any (msg:"[SECNET] Tráfico detectado en eth0"; sid:1000000; rev:1;)
+# ================================
+# SECNET Custom Rules (SID: 1000001 – 1000010)
+# ================================
 
-# 2) High DNS Query Volume (usa dns_query, no dns.query)
-alert dns any any -> any any (msg:"ET MALWARE High DNS Query Volume"; dns_query; threshold:type threshold, track by_src, count 50, seconds 60; classtype:trojan-activity; sid:1000014; rev:1; priority:1;)
+# 1) SSH Brute Force Attempt
+alert tcp any any -> $HOME_NET 22 (msg:"[SECNET] SSH Brute Force Attempt"; \
+    detection_filter:track by_src, count 5, seconds 60; \
+    sid:1000001; rev:1; classtype:attempted-admin; priority:2;)
 
-# 3) TLS Downgrade (si tu versión de Suricata admite tls.handshake_type, no tls.cipher_suite)
-alert tls any any -> $HOME_NET any (msg:"ET TLS Downgrade Attempt"; tls.handshake_type:1; classtype:attempted-admin; sid:1000026; rev:2; priority:2;)
+# 2) Nmap HTTP Scan
+alert tcp any any -> $HOME_NET 80 (msg:"[SECNET] Nmap HTTP Scan"; \
+    flow:to_server,established; \
+    detection_filter:track by_src, count 10, seconds 60; \
+    sid:1000002; rev:1; classtype:attempted-recon; priority:3;)
 
-# 4) SMB: cada content tiene el hex escapado con | |
-alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Enumeration Attempt"; flow:to_server,established; content:"|00 00 00 00|"; depth:4; classtype:attempted-admin; sid:1000038; rev:1; priority:2;)
-alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Null Session Attempt"; flow:to_server,established; content:"|00 00 00 00|"; depth:4; offset:4; classtype:attempted-admin; sid:1000039; rev:1; priority:2;)
-alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB File Access Attempt"; flow:to_server,established; content:"|00 00 00 00|"; depth:4; offset:8; classtype:attempted-admin; sid:1000041; rev:1; priority:2;)
-alert tcp any any -> $HOME_NET 445 (msg:"ET SMB SMB Directory Listing Attempt"; flow:to_server,established; content:"|00 00 00 00|"; depth:4; offset:12; classtype:attempted-admin; sid:1000042; rev:1; priority:2;)
+# 3) SMB Enumeration Attempt
+alert tcp any any -> $HOME_NET 445 (msg:"[SECNET] SMB Enumeration Attempt"; \
+    flow:to_server,established; \
+    content: "|00 00 00 00|"; depth:4; \
+    sid:1000003; rev:1; classtype:attempted-admin; priority:2;)
 
-# 5) HTTP: detectar Nmap mediante su User-Agent
-alert http any any -> $HOME_NET any (msg:"[SECNET] Escaneo HTTP Nmap detectado"; content:"Nmap Scripting Engine"; http_header; nocase; classtype:attempted-recon; sid:1000050; rev:1; priority:3;)
+# 4) High DNS Query Volume
+alert udp any any -> $HOME_NET 53 (msg:"[SECNET] High DNS Query Volume"; \
+    content:"|00 01 00 00 01 00 00 00 00 00 01|"; depth: 11; offset: 2; \
+    detection_filter: track by_src, count 50, seconds 60; \
+    sid:1000004; rev:1; classtype:trojan-activity; priority:1;)
 
-# 6) TCP SYN Scan: más de 20 SYN en 60s hacia 192.168.56.4
-alert tcp any any -> $HOME_NET any (msg:"[SECNET] SYN Scan detectado"; flags:S; threshold:type both, track by_src, count 20, seconds 60; classtype:attempted-recon; sid:1000051; rev:1; priority:3;)
+# 5) Suspicious SSL/TLS Traffic
+alert tcp any any -> $HOME_NET 443 (msg:"[SECNET] Suspicious SSL/TLS Traffic"; \
+    flow:to_server,established; \
+    content:"|16 03 01|"; depth: 3; offset: 0; \
+    sid:1000005; rev:1; classtype:attempted-admin; priority:2;)
 
-# 7) SSH Brute-Force: más de 5 intentos a 22 en 60s
-alert tcp any any -> $HOME_NET 22 (msg:"[SECNET] SSH Brute Force Intentado"; flow:to_server,established; threshold:type threshold, track by_src, count 5, seconds 60; classtype:attempted-admin; sid:1000052; rev:1; priority:2;)
+# 6) Telnet Connection Attempt
+alert tcp any any -> $HOME_NET 23 (msg:"[SECNET] Telnet Connection Attempt"; \
+    flow:to_server,established; \
+    sid:1000006; rev:1; classtype:attempted-admin; priority:2;)
+
+# 7) MS-SQL Connection Attempt
+alert tcp any any -> $HOME_NET 1433 (msg:"[SECNET] MS-SQL Connection Attempt"; \
+    flow:to_server,established; \
+    sid:1000007; rev:1; classtype:attempted-user; priority:2;)
+
+# 8) MySQL Connection Attempt
+alert tcp any any -> $HOME_NET 3306 (msg:"[SECNET] MySQL Connection Attempt"; \
+    flow:to_server,established; \
+    sid:1000008; rev:1; classtype:attempted-user; priority:2;)
+
+# 9) ICMP Ping (Network Scan)
+alert icmp any any -> $HOME_NET any (msg:"[SECNET] ICMP Ping"; \
+    icode:0; \
+    sid:1000009; rev:1; classtype:network-scan; priority:3;)
+
+# 10) SMTP Connection Attempt
+alert tcp any any -> $HOME_NET 25 (msg:"[SECNET] SMTP Connection Attempt"; \
+    flow:to_server,established; \
+    sid:1000010; rev:1; classtype:attempted-admin; priority:2;)

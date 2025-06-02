@@ -1,99 +1,54 @@
 %YAML 1.1
 ---
-# ===================================================================
+# ================================
 # Suricata Configuration File
-# Tailored to capture and detect attacks only on eth0 (IP 192.168.56.4)
-# Copy–paste this file to replace your existing suricata.yaml
-# ===================================================================
+# Monitorea únicamente tráfico hacia 192.168.56.4/32 en eth0
+# ================================
 
-# -----------------
-# 1. General Settings
-# -----------------
-# Default runmode is IDS. You can override with CLI flags if needed.
-runmode: IDS
+# 1. Run Mode Configuration
+runmode: autofp
 
-# Default logging configuration
+# 2. Logging
 logging:
   default-log-level: info
-
   outputs:
-  - eve-log:
-      enabled: yes
-      filetype: regular
-      filename: /var/log/suricata/eve.json
-      types:
-        - alert
-        - http
-        - dns
-        - tls
-        - ssh
     - console:
         enabled: yes
-        # Prints Suricata startup info and errors to STDOUT
     - file:
         enabled: yes
         filename: /var/log/suricata/suricata.log
-        # Main Suricata log (warnings, notices, errors, etc.)
 
-# -----------------
-# 2. Variables
-# -----------------
+# 3. Variables de Red
 vars:
-  # HOME_NET is the only IP we want to inspect: 192.168.56.4/32 on eth0
   address-groups:
-    HOME_NET: "[192.168.56.4/32]"
+    HOME_NET: "[192.168.56.4/24]"      # Solo la IP del host en eth0
   port-groups:
     HTTP_PORTS: "[80,443]"
     SHELLCODE_PORTS: "[!80, !445, !8080]"
-    SHELLCODE_PORTS_MATCHED: yes
+    # Removed SHELLCODE_PORTS_MATCHED as it's not a standard Suricata variable
 
-# -----------------
-# 3. Detection Engine
-# -----------------
-# Detection Profile: choose appropriate profile based on performance/coverage
-detect:
-  profile: medium
-  # Enable PCAP logging for pcap-inspect or offline analysis if desired
-  pcap-log: no
-
-  # Threshold configuration (if you have any threshold config file)
-  threshold-file: /etc/suricata/threshold.config
-
-# -----------------
-# 4. Rule Files
-# -----------------
-# List all rule files (relative to /etc/suricata/rules/)
+# 4. Archivos de Reglas
+default-rule-path: /etc/suricata/rules
 rule-files:
   - local.rules
-  # If you want to include Emerging Threats or other rule sets, add them here:
-  # - et/open/sid-msg.map
-  # - et/open/snort.rules
 
-# -----------------
-# 5. Capture Settings
-# -----------------
-# Use AF_PACKET on host’s eth0 to see all traffic to 192.168.56.4
+# 5. AF_PACKET Configuration
 af-packet:
   - interface: eth0
-    threads: 4
-    # Increase ring-buffer for high throughput
-    ring-buffer-size: 256m
-    # Recommended in IDS mode for better performance
-    tpacket_v3: yes
-    # Normally, you might set cluster-id and cluster-type for load balancing,
-    # but for single-interface host mode, defaults are fine.
+    threads: auto
+    cluster-id: 99
+    cluster-type: cluster_flow
+    defrag: yes
+    use-mmap: yes
+    ring-size: 65536
+    block-size: 131072
+    block-timeout: 10
+    # Using tpacket v2 for better compatibility
+    tpacket-v3: no
+    # Buffer size in bytes (1GB = 1073741824)
+    buffer-size: 1073741824
 
-# If you were to use PCAP instead of AF-PACKET, disable AF-PACKET and configure like this:
-# pcap:
-#   - interface: eth0
-#     # disable promisc if you only want to capture specific traffic
-#     promisc: yes
-#     # set snaplen if you want to limit packet capture size
-#     snaplen: 1518
-
-# -----------------
-# 6. App-Layer Protocol Detection
-# -----------------
+# 6. Detección de Protocolos de Capa de Aplicación
 app-layer:
   protocols:
     http:
@@ -112,81 +67,37 @@ app-layer:
       enabled: no
     modbus:
       enabled: no
-    # Add or enable additional protocols only if you need them
 
-# -----------------
-# 7. Outputs
-# -----------------
+# 7. Salidas (EVE JSON)
 outputs:
-  # EVE JSON Output: central place for alerts and other event types
   - eve-log:
       enabled: yes
       filetype: regular
       filename: /var/log/suricata/eve.json
       types:
-        - alert        # Log Suricata alerts (every time a rule fires)
-        - http         # Log HTTP requests/responses
-        - dns          # Log DNS queries/responses
-        - tls          # Log TLS handshakes
-        - ssh          # Log SSH sessions
-        # - drop       # Uncomment if you ever run Suricata in IPS mode
-        # - stats      # Uncomment to include stats dumps in eve.json
-
-  # Fast Log (unified2). Disable if not using a unified2/ Barnyard2 setup
+        - alert
+        - http
+        - dns
+        - tls
+        - ssh
   - fast-log:
       enabled: no
       filename: /var/log/suricata/fast.log
       append: yes
-
-  # Stats Log (periodic performance stats)
   - stats:
       enabled: yes
       filename: /var/log/suricata/stats.log
-      interval: 10        # Dump stats every 10 seconds
+      interval: 10
 
-# -----------------
-# 8. Host OS Policy (optional)
-# -----------------
-# If you want Suricata to block certain traffic in IPS mode, configure here.
-# In IDS mode, this section is not used.
-host-os-policy:
-  - name: Linux
-    log: yes
+# 8. Host OS Policy - Disabled to prevent errors in container
+# host-os-policy:
+#   - name: Linux
+#     log: yes
 
-# -----------------
-# 9. Classification & Reference Config
-# -----------------
-# Suricata needs these to classify alerts and cross-reference against SID lists.
-# If you already have default files in /etc/suricata, you can leave these as-is.
+# 9. Clasificación y Referencias (archivos por defecto)
 classification-file: /etc/suricata/classification.config
 reference-config-file: /etc/suricata/reference.config
 
-# -----------------
-# 10. Threshold Configuration (optional)
-# -----------------
-# If you have custom threshold rules, list them here.
+# 10. Configuración de Threshold (opcional)
 threshold-config:
   - /etc/suricata/threshold.config
-
-# -----------------
-# 11. Detection Performance Tuning (optional)
-# -----------------
-# Profiling, CPU affinity, and memory tuning can be done here. For most setups, defaults work fine.
-
-# -----------------
-# 12. Default GeoIP (optional)
-# -----------------
-# If you want GeoIP lookups on IPs, enable and provide DB paths. Otherwise, leave disabled.
-# geoip:
-#   - database: /usr/share/GeoIP/GeoLite2-Country.mmdb
-
-# -----------------
-# 13. Lua Scripts (optional)
-# -----------------
-# Enable Lua scripts for custom detections if needed. Otherwise, leave empty or disabled.
-# lua:
-#   enabled: no
-
-# ===================================================================
-# End of suricata.yaml
-# ===================================================================

@@ -2,20 +2,24 @@ FROM ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# 1. Instalar Suricata desde PPA oficial
 RUN apt-get update && \
     apt-get install -y software-properties-common && \
-    add-apt-repository ppa:oisf/suricata-stable && \
+    add-apt-repository ppa:oisf/suricata-stable -y && \
     apt-get update && \
     apt-get install -y suricata
 
-# Create log directory
-RUN mkdir -p /var/log/suricata
+# 2. Crear directorios necesarios
+RUN mkdir -p /etc/suricata/rules /var/log/suricata
 
-# Copy default configuration
+# 3. Copiar configuración y reglas desde el contexto
 COPY suricata.yaml /etc/suricata/suricata.yaml
+COPY rules/local.rules /etc/suricata/rules/local.rules
 
-# Set permissions
-RUN chmod 644 /etc/suricata/suricata.yaml
+# 4. Ajustar permisos
+RUN chmod 644 /etc/suricata/suricata.yaml && \
+    chmod 644 /etc/suricata/rules/local.rules
 
-# Command to run Suricata
-CMD ["suricata", "-c", "/etc/suricata/suricata.yaml", "-i", "eth0"]
+# 5. Arrancar Suricata en modo IDS escuchando en eth0
+ENTRYPOINT ["suricata"]
+CMD ["-c", "/etc/suricata/suricata.yaml", "-i", "eth0"]
