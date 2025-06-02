@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  suricata:
+    build: ./suricata
+    container_name: suricata
+    network_mode: "host"
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_NICE
+    volumes:
+      # Monta el YAML corregido y la carpeta de reglas
+      - ./suricata/suricata.yaml:/etc/suricata/suricata.yaml:ro
+      - ./suricata/rules:/etc/suricata/rules:ro
+      # Carpeta donde Suricata volcará eve.json y suricata.log
+      - ./logs:/var/log/suricata
+    restart: unless-stopped
+
+  python-responder:
+    build: ./python-responder
+    container_name: python-responder
+    networks:
+      - incident-network
+    volumes:
+      # Solo-lectura: leer los logs JSON de Suricata
+      - ./logs:/var/log/suricata:ro
+      # Carpeta donde Python-Responder almacena la BD
+      - ./database:/app/database
+    depends_on:
+      - suricata
+    restart: unless-stopped
+    command: ["python", "responder.py"]
+
+  web-interface:
+    build: ./web-interface
+    container_name: web-interface
+    networks:
+      - incident-network
+    ports:
+      - "8080:80"
+    volumes:
+      # Código PHP de la interfaz
+      - ./web-interface:/var/www/html
+      # BD para que la web lea alertas
+      - ./database:/var/www/html/database
+      # Acceso a logs (opcional, p.ej. para descargas)
+      - ./logs:/var/www/html/logs:ro
+    depends_on:
+      - suricata
+      - python-responder
+    restart: unless-stopped
+
+networks:
+  incident-network:
+    driver: bridge
